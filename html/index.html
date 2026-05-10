@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Distortionz Metrics</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="root" class="hidden">
+
+    <div class="panel">
+
+        <!-- ─── Header ─────────────────────────────────────────────── -->
+        <header class="panel-header">
+            <div class="brand">
+                <span class="brand-mark">DZ</span>
+                <span class="brand-text">Metrics</span>
+                <span class="brand-version" id="brand-version">v1.0.0</span>
+            </div>
+
+            <div class="server-strip">
+                <div class="strip-card" title="Server uptime">
+                    <span class="strip-label">UPTIME</span>
+                    <span class="strip-value" id="strip-uptime">—</span>
+                </div>
+                <div class="strip-card" title="Players online / max">
+                    <span class="strip-label">PLAYERS</span>
+                    <span class="strip-value" id="strip-players">—</span>
+                </div>
+                <div class="strip-card" title="Server-side resource memory (this script)">
+                    <span class="strip-label">SRV MEM</span>
+                    <span class="strip-value" id="strip-mem">—</span>
+                </div>
+                <div class="strip-card" title="Local client FPS (rolling 1s avg)">
+                    <span class="strip-label">FPS</span>
+                    <span class="strip-value" id="strip-fps">—</span>
+                </div>
+                <div class="strip-card" title="Total resources running on the server">
+                    <span class="strip-label">RES</span>
+                    <span class="strip-value" id="strip-res">—</span>
+                </div>
+            </div>
+
+            <button class="close-btn" id="close-btn" title="Close (ESC)">×</button>
+        </header>
+
+        <!-- ─── Tab strip ─────────────────────────────────────────── -->
+        <nav class="tabs">
+            <button class="tab active" data-view="resources">
+                <span class="tab-label">Resources</span>
+                <span class="tab-count" id="tab-count-resources">0</span>
+            </button>
+            <button class="tab" data-view="server">
+                <span class="tab-label">Server</span>
+            </button>
+            <button class="tab" data-view="ticks">
+                <span class="tab-label">Ticks</span>
+                <span class="tab-count" id="tab-count-ticks">0</span>
+            </button>
+
+            <span class="refresh-hint" id="refresh-hint">refreshing…</span>
+        </nav>
+
+        <!-- ─── Body ──────────────────────────────────────────────── -->
+        <main class="panel-body">
+
+            <!-- ── View: RESOURCES ───────────────────────────────── -->
+            <section class="view active" data-view="resources">
+                <div class="toolbar">
+                    <input id="resource-search" class="dz-input" type="text"
+                           placeholder="Search resources (name, author)..." />
+
+                    <div class="filter-row">
+                        <button class="filter-chip active" data-state-filter="all">All</button>
+                        <button class="filter-chip" data-state-filter="started">Started</button>
+                        <button class="filter-chip" data-state-filter="stopped">Stopped</button>
+                        <button class="filter-chip" data-state-filter="distortionz">distortionz_*</button>
+                        <button class="filter-chip" data-state-filter="qbx">qbx_*</button>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="metrics-table">
+                        <thead>
+                            <tr>
+                                <th data-sort="name">Resource</th>
+                                <th data-sort="state">State</th>
+                                <th data-sort="version">Version</th>
+                                <th data-sort="depCount">Deps</th>
+                                <th data-sort="restartCount">Restarts</th>
+                                <th data-sort="lastRestartMs">Last started</th>
+                                <th data-sort="tick">Tick (avg / p95)</th>
+                                <th class="th-actions">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resources-body">
+                            <tr><td colspan="8" class="empty">Loading…</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ── View: SERVER ──────────────────────────────────── -->
+            <section class="view" data-view="server">
+
+                <div class="server-grid">
+
+                    <div class="metric-card">
+                        <div class="metric-head">
+                            <span class="metric-title">Server memory (kb)</span>
+                            <span class="metric-current" id="mem-current">—</span>
+                        </div>
+                        <canvas id="chart-mem" class="metric-chart" width="600" height="120"></canvas>
+                        <div class="metric-foot">
+                            <span class="metric-foot-label">distortionz_metrics process — calibration baseline only</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-head">
+                            <span class="metric-title">Players online</span>
+                            <span class="metric-current" id="players-current">—</span>
+                        </div>
+                        <canvas id="chart-players" class="metric-chart" width="600" height="120"></canvas>
+                        <div class="metric-foot">
+                            <span class="metric-foot-label" id="players-cap">—</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-head">
+                            <span class="metric-title">Net events / refresh</span>
+                            <span class="metric-current" id="events-current">— in / — out</span>
+                        </div>
+                        <canvas id="chart-events" class="metric-chart" width="600" height="120"></canvas>
+                        <div class="metric-foot">
+                            <span class="metric-foot-label">Counted on the metrics resource only — see tooltip</span>
+                        </div>
+                    </div>
+
+                    <div class="metric-card info-card">
+                        <div class="metric-head">
+                            <span class="metric-title">Honest scope</span>
+                        </div>
+                        <p class="info-body">
+                            FiveM doesn't expose per-resource ms-per-frame to Lua — the in-game
+                            <code>resmon</code> overlay reads from the script host directly.
+                            What we DO show: live resource roster, restart counts, server
+                            health time-series, and opt-in tick samples for any script that calls
+                            <code>exports.distortionz_metrics:RegisterTick(deltaMs[, label])</code>.
+                            For ground-truth ms-per-frame, run <code>resmon</code> in F8.
+                        </p>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ── View: TICKS ───────────────────────────────────── -->
+            <section class="view" data-view="ticks">
+
+                <div class="ticks-head">
+                    <div class="local-card">
+                        <div class="local-card-row">
+                            <span class="local-label">Your client</span>
+                            <span class="local-fps" id="local-fps">— FPS</span>
+                        </div>
+                        <div class="local-card-row local-sub">
+                            <span class="local-label">Avg frame</span>
+                            <span id="local-frame">— ms</span>
+                        </div>
+                        <div class="local-card-row local-sub">
+                            <span class="local-label">Worst frame</span>
+                            <span id="local-worst">— ms</span>
+                        </div>
+                    </div>
+
+                    <p class="ticks-doc">
+                        Per-script tick samples below come from any resource that has
+                        opted in via <code>exports.distortionz_metrics:RegisterTick(deltaMs, label)</code>.
+                        Resources not listed here either don't participate, or don't have a
+                        meaningful tick to report (one-shot scripts).
+                    </p>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="metrics-table">
+                        <thead>
+                            <tr>
+                                <th>Resource</th>
+                                <th>Label</th>
+                                <th>Avg ms</th>
+                                <th>p95 ms</th>
+                                <th>Max ms</th>
+                                <th>Samples</th>
+                                <th>Last update</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ticks-body">
+                            <tr><td colspan="7" class="empty">No opted-in resources yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ─── Toast (replaces alert) ─────────────────────────────── -->
+        <div id="toast" class="toast hidden"></div>
+
+        <!-- ─── Confirm modal (replaces confirm) ───────────────────── -->
+        <div id="confirmModal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <h3 class="modal-title" id="confirmTitle">Are you sure?</h3>
+                <p class="modal-message" id="confirmMessage">This action cannot be undone.</p>
+                <div class="modal-actions">
+                    <button class="btn ghost" id="confirmCancel">Cancel</button>
+                    <button class="btn danger" id="confirmOk">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

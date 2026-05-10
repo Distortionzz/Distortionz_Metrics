@@ -1,0 +1,6 @@
+{
+    "version": "1.0.1",
+    "name": "distortionz_metrics",
+    "download": "https://github.com/Distortionzz/Distortionz_Metrics",
+    "changelog": "v1.0.1 — Added README.md with overview, features, dependencies, installation, tick API reference, and credits. Standardized GitHub repo metadata (badges, dynamic version pull, MIT license, Qbox required). v1.0.0 — Initial release. Premium developer dashboard for the distortionz_* stack. Three tabs: Resources, Server, Ticks. Tier-gated via distortionz_perms. Default keybind F4 + /metrics command."
+}
